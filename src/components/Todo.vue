@@ -1,15 +1,16 @@
 <template>
-    <v-data-table
+    <div class="table-container">
+      <v-data-table
       :headers="headers"
-      :items="desserts"
-      :sort-by="[{ key: 'calories', order: 'asc' }]"
+      :items="todos"
+      :sort-by="[{ key: 'title', order: 'asc' }]"
       class="elevation-1"
     >
       <template v-slot:top>
         <v-toolbar
           flat
         >
-          <v-toolbar-title>My CRUD</v-toolbar-title>
+          <v-toolbar-title>Todo list</v-toolbar-title>
           <v-divider
             class="mx-4"
             inset
@@ -27,7 +28,7 @@
                 class="mb-2"
                 v-bind="props"
               >
-                New Item
+                New Task
               </v-btn>
             </template>
             <v-card>
@@ -44,8 +45,8 @@
                       md="4"
                     >
                       <v-text-field
-                        v-model="editedItem.name"
-                        label="Dessert name"
+                        v-model="editedItem.text"
+                        label="Title"
                       ></v-text-field>
                     </v-col>
                     <v-col
@@ -54,8 +55,8 @@
                       md="4"
                     >
                       <v-text-field
-                        v-model="editedItem.calories"
-                        label="Calories"
+                        v-model="editedItem.description"
+                        label="Description"
                       ></v-text-field>
                     </v-col>
                     <v-col
@@ -64,30 +65,10 @@
                       md="4"
                     >
                       <v-text-field
-                        v-model="editedItem.fat"
-                        label="Fat (g)"
+                        v-model="editedItem.completed"
+                        label="Completed"
                       ></v-text-field>
-                    </v-col>
-                    <v-col
-                      cols="12"
-                      sm="6"
-                      md="4"
-                    >
-                      <v-text-field
-                        v-model="editedItem.carbs"
-                        label="Carbs (g)"
-                      ></v-text-field>
-                    </v-col>
-                    <v-col
-                      cols="12"
-                      sm="6"
-                      md="4"
-                    >
-                      <v-text-field
-                        v-model="editedItem.protein"
-                        label="Protein (g)"
-                      ></v-text-field>
-                    </v-col>
+                    </v-col> 
                   </v-row>
                 </v-container>
               </v-card-text>
@@ -104,7 +85,7 @@
                 <v-btn
                   color="blue-darken-1"
                   variant="text"
-                  @click="save"
+                  @click="saveTodo"
                 >
                   Save
                 </v-btn>
@@ -142,12 +123,14 @@
       <template v-slot:no-data>
         <v-btn
           color="primary"
-          @click="initialize"
+          @click="fetchTodos"
         >
           Reset
         </v-btn>
       </template>
     </v-data-table>
+    </div>
+
   </template>
   
   <script>
@@ -156,34 +139,60 @@
   export default {
     data() {
         return {
-            newTodo: '',
-            todos: [],
+          dialog: false,
+          dialogDelete: false,
+            headers: [
+            { title: 'Title', key: 'text' },
+            { title: 'Description', key: 'description' },
+            { title: 'Completed', key: 'completed'},
+            { title: 'Actions', key: 'actions', sortable: false },
+          ],
+          editedItem: {
+            title:'',
+            description: '',
+            completed: false
+          },
+          defaultItem: {
+            title:'',
+            description: '',
+            completed: false
+          },
+          editedIndex: -1,
+          todos: [],
         };
     },
     methods: {
-        async addTodo() {
+        async saveTodo() {
+          if (this.editedIndex > -1) {
+            Object.assign(this.todos[this.editedIndex], this.editedItem)
             try {
-            const response = await $http.post('/api/todos', { text: this.newTodo });
-            this.todos.push(response.data);
-            this.newTodo = '';
-            } catch (error) {
-            console.error('Error adding todo:', error);
-            }
-        },
-        async updateTodo(todo) {
-            try {
-            await $http.put(`/api/todos/${todo._id}`, { completed: todo.completed });
+            await $http.put(`/api/todos/${this.editedItem._id}`, this.editedItem);
             } catch (error) {
             console.error('Error updating todo:', error);
             }
-        },
-        async deleteTodo(todoId) {
+          } else {
             try {
-            await $http.delete(`/api/todos/${todoId}`);
-            this.todos = this.todos.filter(todo => todo._id !== todoId);
+              const response = await $http.post('/api/todos', this.editedItem);
+              this.todos.push(response.data);
+              this.newTodo = '';
             } catch (error) {
-            console.error('Error deleting todo:', error);
+              console.error('Error adding todo:', error);
             }
+          }
+          this.close()
+        },
+        editItem (item) {
+          this.editedIndex = this.todos.indexOf(item)
+          this.editedItem = Object.assign({}, item)
+          this.dialog = true
+        },
+  
+        deleteItem (item) {
+          this.editedIndex = this.todos.indexOf(item)
+          this.editedItem = Object.assign({}, item)
+          this.dialogDelete = true
+        },
+        
         },
         async fetchTodos() {
             try {
@@ -193,13 +202,48 @@
             console.error('Error fetching todos:', error);
             }
         },
+        async deleteItemConfirm () {
+          try {
+            await $http.delete(`/api/todos/${this.editedItem._id}`);
+            this.todos.splice(this.editedIndex, 1)
+            } catch (error) {
+            console.error('Error deleting todo:', error);
+            }
+          this.closeDelete()
+        },
+  
+        close () {
+          this.dialog = false
+          this.$nextTick(() => {
+            this.editedItem = Object.assign({}, this.defaultItem)
+            this.editedIndex = -1
+          })
+        },
+  
+        closeDelete () {
+          this.dialogDelete = false
+          this.$nextTick(() => {
+            this.editedItem = Object.assign({}, this.defaultItem)
+            this.editedIndex = -1
+          })
+        },
+
     },
     created() {
         this.fetchTodos();
     },
+    computed: {
+        formTitle () {
+          return this.editedIndex === -1 ? 'New Item' : 'Edit Item'
+        },
+      },
   };
   </script>
   
   <style>
-  /* Add your custom styles here */
+  
+  .table-container {
+  max-width: 1800px; /* Đặt độ rộng tối đa cho bảng là 600px (thay đổi theo yêu cầu của bạn) */
+  overflow-x: auto; /* Tạo thanh cuộn ngang khi bảng vượt quá độ rộng */
+}
   </style>

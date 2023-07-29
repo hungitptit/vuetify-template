@@ -4,15 +4,16 @@
     </v-row>
     <v-container>
       <v-row>
-          <vertical-menu-bar></vertical-menu-bar>
+          <VerticalMenuBar></VerticalMenuBar>
         <v-col>
-            <TestCase></TestCase>
+            <Todo></Todo>
+            <!-- <TestCase></TestCase> -->
         </v-col>
     
       </v-row>
     </v-container>
   </template>
-  
+   
 <script>
     import VerticalMenuBar from "@/components/VerticalMenuBar.vue";
     import Todo from "@/components/Todo.vue";
