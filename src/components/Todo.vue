@@ -193,7 +193,6 @@
           this.dialogDelete = true
         },
         
-        },
         async fetchTodos() {
             try {
             const response = await $http.get('/api/todos');
